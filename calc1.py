@@ -1,4 +1,4 @@
-INTEGER,PLUS,MINUS,MUL,DIV,EOF = "integer","plus","minus","mul","div","eof"
+INTEGER,PLUS,MINUS,MUL,DIV,EOF,EXIT = "integer","plus","minus","mul","div","eof","EXIT"
 
 class Token:
     def __init__(self,token_type,value):
@@ -67,6 +67,7 @@ class Interpreter:
         self.current_token = self.lexer.get_next_token()
 
     def eat(self,token_type):
+        #print("current_token: %s,token_type: %s" % (self.current_token.token_type,token_type))
         if self.current_token.token_type == token_type:
             self.current_token = self.lexer.get_next_token()
         else:
@@ -75,10 +76,22 @@ class Interpreter:
     def error(self):
         raise Exception("error parsing text")
 
+    #expr: term (+|- term)*
+    #term: factor (*|/ factor)*
+    #factor: integer
     def term(self):
-        token = self.current_token
-        self.eat(INTEGER)
-        return token.value
+        result = self.factor()
+        while self.current_token.token_type in (MUL,DIV):
+            token = self.current_token
+            if token.token_type == MUL:
+                self.eat(MUL)
+                result = result * self.factor()
+            elif token.token_type == DIV:
+                self.eat(DIV)
+                result = result / self.factor()
+            else:
+                self.error()
+        return result
 
     def factor(self):
         token = self.current_token
@@ -87,15 +100,15 @@ class Interpreter:
 
     def expr(self):
         #self.current_token = self.get_next_token()
-        result = self.factor()
-        while self.current_token.token_type in (MUL,DIV):
+        result = self.term()
+        while self.current_token.token_type in (PLUS,MINUS):
             token = self.current_token
-            if token.token_type == MUL:
-                self.eat(MUL)
-                result *= self.factor()
-            elif token.token_type == DIV:
-                self.eat(DIV)
-                result /= self.factor()
+            if token.token_type == PLUS:
+                self.eat(PLUS)
+                result += self.term()
+            elif token.token_type == MINUS:
+                self.eat(MINUS)
+                result -= self.term()
             else:
                 self.error()
         return result
