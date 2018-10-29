@@ -66,8 +66,21 @@ class Lexer:
         self.error()
         return Token(EOF,None)
 
+class AST(object):
+    pass
 
-class Interpreter:
+class BinOp(AST):
+    def __init__(self,left,op,right):
+        self.left = left
+        self.op = op
+        self.right = right
+
+class Num(AST):
+    def __init__(self,token):
+        self.token = token
+        self.value = self.token.value
+
+class Parser:
     def __init__(self, lexer):
         self.lexer = lexer
         self.current_token = self.lexer.get_next_token()
@@ -86,46 +99,96 @@ class Interpreter:
     #term: factor (*|/ factor)*
     #factor: integer
     def term(self):
-        result = self.factor()
+        node = self.factor()
         while self.current_token.token_type in (MUL,DIV):
+            # token = self.current_token
+            # if token.token_type == MUL:
+            #     self.eat(MUL)
+            #     result = result * self.factor()
+            # elif token.token_type == DIV:
+            #     self.eat(DIV)
+            #     result = result / self.factor()
+            # else:
+            #     self.error()
             token = self.current_token
             if token.token_type == MUL:
                 self.eat(MUL)
-                result = result * self.factor()
             elif token.token_type == DIV:
                 self.eat(DIV)
-                result = result / self.factor()
             else:
                 self.error()
+            node = BinOp(node,token,self.factor())
+        return node
+
         return result
 
     def factor(self):
         token = self.current_token
         if token.token_type == INTEGER:
             self.eat(INTEGER)
-            return token.value
+            return Num(token)
         elif token.token_type == LPAREN:
             self.eat(LPAREN)
-            result = self.expr()
+            node = self.expr()
             self.eat(RPAREN)
-            return result
+            return node
         else:
             self.error()
 
     def expr(self):
         #self.current_token = self.get_next_token()
-        result = self.term()
+        node = self.term()
         while self.current_token.token_type in (PLUS,MINUS):
             token = self.current_token
+            # if token.token_type == PLUS:
+            #     self.eat(PLUS)
+            #     result += self.term()
+            # elif token.token_type == MINUS:
+            #     self.eat(MINUS)
+            #     result -= self.term()
+            # else:
+            #     self.error()
             if token.token_type == PLUS:
                 self.eat(PLUS)
-                result += self.term()
             elif token.token_type == MINUS:
                 self.eat(MINUS)
-                result -= self.term()
             else:
                 self.error()
-        return result
+            node = BinOp(node,token,self.term())
+        return node
+
+class NodeVisitor:
+    def visit(self,node):
+        method_name = "visit_" + type(node).__name__
+        #print("visiting [%s]" % type(node).__name__)
+        visitor = getattr(self,method_name,self.generic_visit)
+        return visitor(node)
+
+    def generic_visit(self,node):
+        raise Exception("visit of %s not implemented" % type(node).__name__)
+
+class Interpreter(NodeVisitor):
+    def __init__(self,parser):
+        self.parser = parser
+
+    def visit_BinOp(self,node):
+        leftValue = self.visit(node.left)
+        rightValue = self.visit(node.right)
+        if node.op.token_type == PLUS:
+            return leftValue + rightValue
+        elif node.op.token_type == MINUS:
+            return leftValue - rightValue
+        elif node.op.token_type == MUL:
+            return leftValue * rightValue
+        elif node.op.token_type == DIV:
+            return leftValue / rightValue
+
+    def visit_Num(self,node):
+        return node.value
+
+    def interpret(self):
+        node = self.parser.expr()
+        return self.visit(node)
 
 def main():
     while True:
@@ -136,13 +199,16 @@ def main():
         if not text:
             continue
         lexer = Lexer(text)
-        interpreter = Interpreter(lexer)
-        result = interpreter.expr()
+        parser = Parser(lexer)
+        interpreter = Interpreter(parser)
+        result = interpreter.interpret()
         print("result: {result}".format(result=result))
 
 if __name__ == "__main__":
     main()
 
+#support nested function call
+#support compound data type
 #you have a programming model,or know how to do something then write it from top to bottom
 #before that, you may need to check for something
 
