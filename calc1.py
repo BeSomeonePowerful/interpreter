@@ -64,21 +64,24 @@ class Interpreter:
         else:
             self.error()
 
+    def term(self):
+        token = self.current_token
+        self.eat(INTEGER)
+        return token.value
+
     def expr(self):
         self.current_token = self.get_next_token()
-        left = self.current_token
-        self.eat(INTEGER)   #compare and move to next token
-        op = self.current_token
-        if op.token_type == PLUS:
-            self.eat(PLUS)
-        else:
-            self.eat(MINUS)
-        right = self.current_token
-        self.eat(INTEGER)
-        if op.token_type == PLUS:
-            result = left.value + right.value
-        else:
-            result = left.value - right.value
+        result = self.term()
+        while self.current_token.token_type in (PLUS,MINUS):
+            token = self.current_token
+            if token.value == "+":
+                self.eat(PLUS)
+                result += self.term()
+            elif token.value == "-":
+                self.eat(MINUS)
+                result -= self.term()
+            else:
+                self.error()
         return result
 
 def main():
@@ -100,3 +103,5 @@ if __name__ == "__main__":
 #before that, you may need to check for something
 
 #python is really a bad language
+
+#build a program and write corresponding test
